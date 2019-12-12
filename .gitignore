@@ -1,0 +1,32 @@
+# Created by https://www.gitignore.io/api/django
+
+### Django ###
+*.log
+*.pot
+*.pyc
+__pycache__/
+local_settings.py
+*.sqlite3
+*.sqlite3-journal
+settings.py
+get-pip.py
+/media
+/media1
+/newmedia.zip
+/static
+design.txt
+githublink.txt
+/node_modules
+package-lock.json
+/venv
+/z_mine
+/fixtures
+/.idea
+/.vs
+*.orig
+/factor/djangobin-secrets.json
+
+
+frontend/
+
+temp_files/
