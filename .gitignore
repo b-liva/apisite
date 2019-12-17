@@ -8,7 +8,7 @@ __pycache__/
 local_settings.py
 *.sqlite3
 *.sqlite3-journal
-settings.py
+# settings.py
 get-pip.py
 /media
 /media1
