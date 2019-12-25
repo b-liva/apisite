@@ -3,6 +3,7 @@ import json
 import random
 import time
 
+import boto3
 from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse
 import digitalocean
@@ -11,6 +12,10 @@ import digitalocean
 from django.views.decorators.csrf import csrf_exempt
 token = '30481e4713012f917ea4f36b95a5528da83493b396e44142336d992aa6e5bc8a'
 manager = digitalocean.Manager(token=token)
+
+aws_access_key_id = 'AKIAUDOO3XHNHONHNTEL'
+aws_secret_access_key = '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'
+ZONE_ID = 'Z20TXVZZSFKONE'
 
 
 class DoHandler(digitalocean.Manager):
@@ -52,6 +57,8 @@ class DoHandler(digitalocean.Manager):
         my_images = self.get_my_images()
         image = my_images[-1]
 
+        print(image.name)
+
         for a in my_images:
             if a.name == 'mtpserver16g':
                 image = a
@@ -62,7 +69,7 @@ class DoHandler(digitalocean.Manager):
             region = random.choice(avail_regs)
             print('loop reg: ', region)
 
-                                   image=image_id)
+        # try:
         creation_time = datetime.datetime.now()
         time_string = \
             str(creation_time.year) + \
@@ -90,6 +97,49 @@ class DoHandler(digitalocean.Manager):
         if len(my_images) == 0:
             print('no image')
             drop.take_snapshot('sm-01')
+
+
+class AwsHandler:
+    zone_id = ''
+
+    def __init__(self, region_name=None):
+        self.zone_id = ZONE_ID
+        session = boto3.Session(
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key,
+        )
+        self.client = session.client("route53")
+
+    def change_dns_ip(self, old_ip, new_ip):
+        record_sets = self.client.list_resource_record_sets(
+            HostedZoneId=self.zone_id,
+        )
+
+        for record in record_sets['ResourceRecordSets']:
+            dns_value = {'Value': str(old_ip)}
+            if record['Type'] == 'A' and dns_value in record['ResourceRecords']:
+
+                new_dns = {'Value': str(new_ip)}
+                record['ResourceRecords'] = [new_dns]
+                self.client.change_resource_record_sets(
+                    HostedZoneId=self.zone_id,
+                    ChangeBatch={
+                        'Comment': 'Good for now',
+                        'Changes': [
+                            {
+                                'Action': 'UPSERT',
+                                'ResourceRecordSet': record
+                            }
+                        ]
+                    }
+                )
+
+    def random_ip(self):
+        new_ip = str(int(200 * random.random())) \
+                 + '.' + str(int(200 * random.random())) \
+                 + '.' + str(int(200 * random.random())) \
+                 + '.' + str(int(200 * random.random()))
+        return new_ip
 
 
 def index(request):
@@ -131,5 +181,15 @@ def change_server(request):
     }
     print(context)
 
+    # todo: change dns
+    aws_handler = AwsHandler()
 
+    print(old_ip, 'is changing to: ', new_drop.ip_address)
+    aws_handler.change_dns_ip(old_ip, new_drop.ip_address)
+
+    # temp_old_ip = '46.101.163.133'
+    # aws_handler.change_dns_ip(temp_old_ip, new_drop.ip_address)
+    # wait to set new dns.
+    print('waiting to change dns...')
+    time.sleep(90)
     return JsonResponse(context, safe=False)
