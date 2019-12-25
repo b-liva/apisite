@@ -1,3 +1,4 @@
+import os
 import datetime
 import json
 import random
@@ -10,12 +11,12 @@ import digitalocean
 
 # Create your views here.
 from django.views.decorators.csrf import csrf_exempt
-token = '30481e4713012f917ea4f36b95a5528da83493b396e44142336d992aa6e5bc8a'
+token = os.environ['DO_TOKEN']
 manager = digitalocean.Manager(token=token)
 
-aws_access_key_id = 'AKIAUDOO3XHNHONHNTEL'
-aws_secret_access_key = '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'
-ZONE_ID = 'Z20TXVZZSFKONE'
+aws_access_key_id = os.environ['AWS_ACCESS_KEY_ID']
+aws_secret_access_key = os.environ['AWS_SECRET_ACCESS_KEY']
+ZONE_ID = os.environ['ZONE_ID']
 
 
 class DoHandler(digitalocean.Manager):
