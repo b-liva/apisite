@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/3.0/ref/settings/
 
 import os
 from django.core.exceptions import ImproperlyConfigured
+from django.urls import reverse_lazy
 
 
 def set_secret_key(settings, secret):
@@ -47,7 +48,9 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework.authtoken',
     'digitalocean',
-    'mtph.apps.MtphConfig'
+    'cloud.apps.CloudConfig',
+    'mtph.apps.MtphConfig',
+    'account.apps.AccountConfig',
 ]
 
 MIDDLEWARE = [
@@ -104,7 +107,12 @@ DATABASES = {
     }
 }
 
-
+# https://docs.djangoproject.com/en/dev/ref/settings/#auth-user-model
+AUTH_USER_MODEL = 'account.User'
+# https://docs.djangoproject.com/en/dev/ref/settings/#login-redirect-url
+LOGIN_REDIRECT_URL = '/'
+# https://docs.djangoproject.com/en/dev/ref/settings/#login-url
+LOGIN_URL = reverse_lazy('account_login')
 # Password validation
 # https://docs.djangoproject.com/en/3.0/ref/settings/#auth-password-validators
 
