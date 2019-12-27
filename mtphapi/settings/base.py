@@ -49,7 +49,6 @@ INSTALLED_APPS = [
     'rest_framework.authtoken',
     'digitalocean',
     'cloud.apps.CloudConfig',
-    'mtph.apps.MtphConfig',
     'account.apps.AccountConfig',
 ]
 
