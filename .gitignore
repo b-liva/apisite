@@ -30,3 +30,5 @@ package-lock.json
 frontend/
 
 temp_files/
+
+sandbox/
