@@ -121,7 +121,9 @@ class AwsHandler:
             if record['Type'] == 'A' and dns_value in record['ResourceRecords']:
 
                 new_dns = {'Value': str(new_ip)}
-                record['ResourceRecords'] = [new_dns]
+                record['ResourceRecords'].remove(dns_value)
+                record['ResourceRecords'].append(new_dns)
+                # record['ResourceRecords'] = [new_dns]
                 self.client.change_resource_record_sets(
                     HostedZoneId=self.zone_id,
                     ChangeBatch={
