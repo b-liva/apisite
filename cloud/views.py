@@ -8,7 +8,7 @@ import boto3
 from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse
 import digitalocean
-
+from cloud.models import Server, Cloud
 # Create your views here.
 from django.views.decorators.csrf import csrf_exempt
 token = os.environ['DO_TOKEN']
@@ -21,8 +21,8 @@ ZONE_ID = os.environ['ZONE_ID']
 
 class DoHandler(digitalocean.Manager):
 
-    def __init__(self, token_key):
-        self.token = token_key
+    def __init__(self, token):
+        self.token = token
         digitalocean.Manager.__init__(self, token=self.token)
 
     def get_sizes(self):
@@ -52,16 +52,18 @@ class DoHandler(digitalocean.Manager):
 
         return drop
 
-    def create_new_droplet(self):
+    def create_new_droplet(self, server_type):
         avail_regs = ['ams3', 'fra1', 'lon1', 'nyc1', 'nyc3', 'tor1', 'sfo2']
         max_size, avail_regs_raw = self.get_sizes()
         my_images = self.get_my_images()
         image = my_images[-1]
 
         print(image.name)
+        image_name = f'mtpserver16g-{server_type}'
 
         for a in my_images:
-            if a.name == 'mtpserver16g':
+            # if a.name == 'mtpserver16g':
+            if a.name == image_name:
                 image = a
 
         region = random.choice(avail_regs)
@@ -87,9 +89,29 @@ class DoHandler(digitalocean.Manager):
         # except:
         #     self.create_new_droplet()
         print('start waiting')
+
         time.sleep(30)
 
         return obj
+
+    def determine_server_type(self, drop):
+        snapshot_ids = drop.get_snapshots()
+        proxy_snapshot_selector = 'pr01'
+        if snapshot_ids:
+            snap = snapshot_ids[len(snapshot_ids) - 1]
+            snapshot_obj = self.get_snapshot(snap.id)
+            proxy_snapshot_selector = snapshot_obj.name.split('-')[1]
+        return proxy_snapshot_selector
+
+    def create_drops(self, drops, cloud):
+        for drop in drops:
+            if not Server.objects.filter(server_id=drop['id'], ipv4=drop['ip']).exists():
+                Server.objects.create(
+                    cloud=cloud,
+                    server_id=drop['id'],
+                    ipv4=drop['ip'],
+                    type=self.determine_server_type(self.get_droplet(drop['id'])),
+                )
 
     def sandbox(self):
         # Taking a snapshot
@@ -158,8 +180,12 @@ def test_json_response(request):
 
 @csrf_exempt
 def get_all_servers(request):
-    do_handler = DoHandler(token)
-    droplets = do_handler.get_droplets()
+    droplets = list()
+    for account in Cloud.objects.filter(is_active=True, owner__is_active=True):
+        do_handler = DoHandler(account.secret)
+        account_droplets = do_handler.get_droplets()
+        do_handler.create_drops(account_droplets, account)
+        droplets += account_droplets
     print(droplets)
     return JsonResponse(droplets, safe=False)
 
@@ -169,14 +195,29 @@ def change_server(request):
     data = json.loads(request.body.decode('utf-8'))
     id = data['id']
     print('fingind by id: ', id)
-    do_handler = DoHandler(token)
+
+    server = Server.objects.get(server_id=id)
+
+    do_handler = DoHandler(server.cloud.secret)
     old_droplet = do_handler.get_droplet_by_id(id)
     old_ip = old_droplet.ip_address
     print('destroying old droplet! => ', old_ip)
     old_droplet.destroy()
+    server.fail = True
+    server.save()
+
     time.sleep(20)
-    new_drop = do_handler.create_new_droplet()
+
+    new_drop = do_handler.create_new_droplet(server.type)
     new_drop = do_handler.get_droplet_by_id(new_drop.id)
+
+    Server.objects.create(
+        cloud=Cloud.objects.get(secret=do_handler.token),
+        name=new_drop.name,
+        server_id=new_drop.id,
+        ipv4=new_drop.ip_address,
+        type=do_handler.determine_server_type(new_drop),
+    )
     print('new drop created...: ', new_drop.ip_address)
     context = {
         'id': new_drop.id,
