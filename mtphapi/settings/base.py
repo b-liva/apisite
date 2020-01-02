@@ -36,7 +36,7 @@ print('base dir: ', ROOT_DIR)
 # SECURITY WARNING: keep the secret key used in production secret!
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
 ALLOWED_HOSTS = ['3.84.206.7', '127.0.0.1']
 
@@ -155,3 +155,4 @@ USE_TZ = True
 
 STATIC_URL = '/static/'
 STATIC_ROOT = os.path.join(ROOT_DIR, 'static/')
+
