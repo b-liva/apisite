@@ -238,7 +238,13 @@ def change_dns(request):
     aws_handler = AwsHandler()
 
     print(old_ip, 'is changing to: ', new_ip)
-    aws_handler.change_dns_ip(old_ip, new_ip)
+    try:
+        aws_handler.change_dns_ip(old_ip, new_ip)
+        status = True
+    except:
+        status = False
+    context = {'status': status}
+    return JsonResponse(context, safe=False)
 
     # temp_old_ip = '46.101.163.133'
     # aws_handler.change_dns_ip(temp_old_ip, new_drop.ip_address)
