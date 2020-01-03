@@ -38,7 +38,7 @@ print('base dir: ', ROOT_DIR)
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['3.84.206.7', '127.0.0.1']
+ALLOWED_HOSTS = ['localhost', '3.84.206.7', '127.0.0.1']
 
 
 # Application definition

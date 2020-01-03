@@ -249,15 +249,17 @@ def change_dns(request):
 def find_new_drop(request):
     data = json.loads(request.body.decode('utf-8'))
     old_ip = data['old_ip']
-    server = Server.objects.get(server_id=id)
+    server = Server.objects.get(ipv4=old_ip)
+    old_ip = old_ip.replace('.', '_')
+
     do_handler = DoHandler(server.cloud.secret)
     drops = do_handler.get_all_droplets()
     for drop in drops:
-        if old_ip.replace('.', '_') in drop.tags:
-            return {
+        if old_ip in drop.tags:
+            context = ({
                 'id': drop.id,
                 'tags': drop.tags,
                 'ip': drop.ip_address,
-            }
+            })
+            return JsonResponse(context, safe=False)
     return False
-
