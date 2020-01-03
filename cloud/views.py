@@ -52,7 +52,7 @@ class DoHandler(digitalocean.Manager):
 
         return drop
 
-    def create_new_droplet(self, server_type):
+    def create_new_droplet(self, server_type, old_ip):
         avail_regs = ['ams3', 'fra1', 'lon1', 'nyc1', 'nyc3', 'tor1', 'sfo2']
         max_size, avail_regs_raw = self.get_sizes()
         my_images = self.get_my_images()
@@ -83,6 +83,7 @@ class DoHandler(digitalocean.Manager):
             str(creation_time.second)
         obj = digitalocean.Droplet(token=self.token, name='ag-' + time_string, region=region, size=max_size,
                                    image=image.id)
+        obj.tags.append(str(old_ip))
         print('start creating.')
         obj.create()
         print('new droplet!', obj.ip_address)
@@ -208,7 +209,7 @@ def change_server(request):
 
     time.sleep(20)
 
-    new_drop = do_handler.create_new_droplet(server.type)
+    new_drop = do_handler.create_new_droplet(server.type, old_ip)
     new_drop = do_handler.get_droplet_by_id(new_drop.id)
 
     Server.objects.create(
@@ -242,7 +243,21 @@ def change_dns(request):
     # temp_old_ip = '46.101.163.133'
     # aws_handler.change_dns_ip(temp_old_ip, new_drop.ip_address)
     # wait to set new dns.
-    print('waiting to change dns...')
-    time.sleep(90)
-    return JsonResponse(context, safe=False)
+
+
+@csrf_exempt
+def find_new_drop(request):
+    data = json.loads(request.body.decode('utf-8'))
+    old_ip = data['old_ip']
+    server = Server.objects.get(server_id=id)
+    do_handler = DoHandler(server.cloud.secret)
+    drops = do_handler.get_all_droplets()
+    for drop in drops:
+        if old_ip in drop.tags:
+            return {
+                'id': drop.id,
+                'tags': drop.tags,
+                'ip': drop.ip_address,
+            }
+    return False
 
