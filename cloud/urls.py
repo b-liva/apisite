@@ -9,4 +9,5 @@ urlpatterns = [
     path('test-json', views.test_json_response, name='test_json'),
     path('get-all-servers', views.get_all_servers, name='get_all_servers'),
     path('change-server', views.change_server, name='change_server'),
+    path('change-dns', views.change_dns, name='change_dns'),
 ]

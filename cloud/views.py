@@ -225,11 +225,19 @@ def change_server(request):
     }
     print(context)
 
+    return JsonResponse(context, safe=False)
+
+
+@csrf_exempt
+def change_dns(request):
+    data = json.loads(request.body.decode('utf-8'))
+    old_ip = data['old_ip']
+    new_ip = data['new_ip']
     # todo: change dns
     aws_handler = AwsHandler()
 
-    print(old_ip, 'is changing to: ', new_drop.ip_address)
-    aws_handler.change_dns_ip(old_ip, new_drop.ip_address)
+    print(old_ip, 'is changing to: ', new_ip)
+    aws_handler.change_dns_ip(old_ip, new_ip)
 
     # temp_old_ip = '46.101.163.133'
     # aws_handler.change_dns_ip(temp_old_ip, new_drop.ip_address)
