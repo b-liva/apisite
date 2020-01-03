@@ -83,7 +83,7 @@ class DoHandler(digitalocean.Manager):
             str(creation_time.second)
         obj = digitalocean.Droplet(token=self.token, name='ag-' + time_string, region=region, size=max_size,
                                    image=image.id)
-        obj.tags.append(str(old_ip))
+        obj.tags.append(str(old_ip).replace('.', '_'))
         print('start creating.')
         obj.create()
         print('new droplet!', obj.ip_address)
@@ -253,7 +253,7 @@ def find_new_drop(request):
     do_handler = DoHandler(server.cloud.secret)
     drops = do_handler.get_all_droplets()
     for drop in drops:
-        if old_ip in drop.tags:
+        if old_ip.replace('.', '_') in drop.tags:
             return {
                 'id': drop.id,
                 'tags': drop.tags,
