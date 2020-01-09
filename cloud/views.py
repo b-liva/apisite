@@ -8,7 +8,7 @@ import boto3
 from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse
 import digitalocean
-from cloud.models import Server, Cloud
+from cloud.models import Server, Cloud, Status
 # Create your views here.
 from django.views.decorators.csrf import csrf_exempt
 token = os.environ['DO_TOKEN']
@@ -86,7 +86,6 @@ class DoHandler(digitalocean.Manager):
         obj.tags.append(str(old_ip).replace('.', '_'))
         print('start creating.')
         obj.create()
-        print('new droplet!', obj.ip_address)
         # except:
         #     self.create_new_droplet()
         print('start waiting')
@@ -160,6 +159,48 @@ class AwsHandler:
                     }
                 )
 
+    def modify_dns(self, action, **kwargs):
+        print('change dns kwargs: ', kwargs)
+        old_ip = new_ip = ''
+        if 'old_ip' in kwargs:
+            old_ip = kwargs['old_ip']
+        if 'new_ip' in kwargs:
+            new_ip = kwargs['new_ip']
+        """removes ip from dns if it exists and adds if not exists in dns."""
+        record_sets = self.client.list_resource_record_sets(
+            HostedZoneId=self.zone_id,
+        )
+
+        for record in record_sets['ResourceRecordSets']:
+            if record['Type'] == 'A':
+                if action == 'remove' and old_ip != '':
+                    old_dns = {'Value': str(old_ip)}
+                    if old_dns in record['ResourceRecords']:
+                        record['ResourceRecords'].remove(old_dns)
+                elif action == 'add' and new_ip != '':
+                    new_dns = {'Value': str(new_ip)}
+                    record['ResourceRecords'].append(new_dns)
+                elif action == 'swap' and old_ip != '' and new_ip != '':
+                    old_dns = {'Value': str(old_ip)}
+                    record['ResourceRecords'].remove(old_dns)
+
+                    new_dns = {'Value': str(new_ip)}
+                    record['ResourceRecords'].append(new_dns)
+                else:
+                    return 'No change in dns accured.'
+                self.client.change_resource_record_sets(
+                    HostedZoneId=self.zone_id,
+                    ChangeBatch={
+                        'Comment': 'Good for now',
+                        'Changes': [
+                            {
+                                'Action': 'UPSERT',
+                                'ResourceRecordSet': record
+                            }
+                        ]
+                    }
+                )
+
     def random_ip(self):
         new_ip = str(int(200 * random.random())) \
                  + '.' + str(int(200 * random.random())) \
@@ -196,28 +237,34 @@ def change_server(request):
     data = json.loads(request.body.decode('utf-8'))
     id = data['id']
     print('fingind by id: ', id)
+    # todo: find a clean ip
+
+    # todo option X01: change dns of related subdomains to this clean ip
 
     server = Server.objects.get(server_id=id)
 
     do_handler = DoHandler(server.cloud.secret)
     old_droplet = do_handler.get_droplet_by_id(id)
     old_ip = old_droplet.ip_address
+
     print('destroying old droplet! => ', old_ip)
     old_droplet.destroy()
     server.fail = True
+    server.status = Status.objects.get(key='fail')
     server.save()
 
     time.sleep(20)
 
     new_drop = do_handler.create_new_droplet(server.type, old_ip)
     new_drop = do_handler.get_droplet_by_id(new_drop.id)
-
+    # todo: set status to testing for this server
     Server.objects.create(
         cloud=Cloud.objects.get(secret=do_handler.token),
         name=new_drop.name,
         server_id=new_drop.id,
         ipv4=new_drop.ip_address,
         type=do_handler.determine_server_type(new_drop),
+        status=Status.objects.get(key='testing')
     )
     print('new drop created...: ', new_drop.ip_address)
     context = {
@@ -232,14 +279,20 @@ def change_server(request):
 @csrf_exempt
 def change_dns(request):
     data = json.loads(request.body.decode('utf-8'))
-    old_ip = data['old_ip']
-    new_ip = data['new_ip']
-    # todo: change dns
-    aws_handler = AwsHandler()
+    old_ip = new_ip = ''
+    action = 'remove'
+    ips = dict()
+    if 'old_ip' in data:
+        ips['old_ip'] = data['old_ip']
 
-    print(old_ip, 'is changing to: ', new_ip)
+    if 'new_ip' in data:
+        ips['new_ip'] = data['new_ip']
+    if 'action' in data:
+        action = data['action']
+    # change dns
+    aws_handler = AwsHandler()
     try:
-        aws_handler.change_dns_ip(old_ip, new_ip)
+        aws_handler.modify_dns(action, old_ip=old_ip, new_ip=new_ip)
         status = True
     except:
         status = False
