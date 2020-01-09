@@ -30,8 +30,17 @@ class Cloud(TimeStampedModel):
         return '%s: %s owned by: %s' % (self.type.name.capitalize(), self.name.capitalize(), self.owner.username.capitalize())
 
 
+class Status(models.Model):
+    key = models.CharField(max_length=15)
+    title = models.CharField(max_length=20)
+
+    def __str__(self):
+        return '%s: %s' % (self.key, self.title)
+
+
 class Server(TimeStampedModel):
     cloud = models.ForeignKey(Cloud, on_delete=models.CASCADE)
+    status = models.ForeignKey(Status, on_delete=models.DO_NOTHING)
     name = models.CharField(max_length=30, blank=True, null=True)
     server_id = models.CharField(max_length=30)
     ipv4 = models.CharField(max_length=20)
