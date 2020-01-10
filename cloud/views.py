@@ -161,11 +161,13 @@ class AwsHandler:
 
     def modify_dns(self, action, **kwargs):
         print('change dns kwargs: ', kwargs)
-        old_ip = new_ip = ''
+        old_ip = new_ip = dns_name = ''
         if 'old_ip' in kwargs:
             old_ip = kwargs['old_ip']
         if 'new_ip' in kwargs:
             new_ip = kwargs['new_ip']
+        if 'dns_name' in kwargs:
+            dns_name = kwargs['dns_name']
         """removes ip from dns if it exists and adds if not exists in dns."""
         record_sets = self.client.list_resource_record_sets(
             HostedZoneId=self.zone_id,
@@ -177,7 +179,7 @@ class AwsHandler:
                     old_dns = {'Value': str(old_ip)}
                     if old_dns in record['ResourceRecords']:
                         record['ResourceRecords'].remove(old_dns)
-                elif action == 'add' and new_ip != '':
+                elif action == 'add' and new_ip != '' and record['Name'] == dns_name:
                     new_dns = {'Value': str(new_ip)}
                     record['ResourceRecords'].append(new_dns)
                 elif action == 'swap' and old_ip != '' and new_ip != '':
@@ -200,6 +202,17 @@ class AwsHandler:
                         ]
                     }
                 )
+
+    def get_dns_by_ip(self, ip):
+        dns_value = {'Value': str(ip)}
+        record_sets = self.client.list_resource_record_sets(
+            HostedZoneId=self.zone_id,
+        )
+
+        for record in record_sets['ResourceRecordSets']:
+            if record['Type'] == 'A' and dns_value in record['ResourceRecords']:
+                return record['Name']
+        return False
 
     def random_ip(self):
         new_ip = str(int(200 * random.random())) \
@@ -246,7 +259,8 @@ def change_server(request):
     do_handler = DoHandler(server.cloud.secret)
     old_droplet = do_handler.get_droplet_by_id(id)
     old_ip = old_droplet.ip_address
-
+    aws_handler = AwsHandler()
+    old_dns_name = aws_handler.get_dns_by_ip(old_ip)
     print('destroying old droplet! => ', old_ip)
     old_droplet.destroy()
     server.fail = True
@@ -258,13 +272,15 @@ def change_server(request):
     new_drop = do_handler.create_new_droplet(server.type, old_ip)
     new_drop = do_handler.get_droplet_by_id(new_drop.id)
     # todo: set status to testing for this server
+    # todo: set dns here.
     Server.objects.create(
         cloud=Cloud.objects.get(secret=do_handler.token),
         name=new_drop.name,
         server_id=new_drop.id,
         ipv4=new_drop.ip_address,
         type=do_handler.determine_server_type(new_drop),
-        status=Status.objects.get(key='testing')
+        status=Status.objects.get(key='testing'),
+        dns=old_dns_name
     )
     print('new drop created...: ', new_drop.ip_address)
     context = {
@@ -279,7 +295,7 @@ def change_server(request):
 @csrf_exempt
 def change_dns(request):
     data = json.loads(request.body.decode('utf-8'))
-    old_ip = new_ip = ''
+    old_ip = new_ip = dns_name = ''
     action = 'remove'
     ips = dict()
     if 'old_ip' in data:
@@ -287,12 +303,16 @@ def change_dns(request):
 
     if 'new_ip' in data:
         new_ip = data['new_ip']
+        server = Server.objects.get(ipv4=new_ip)
+        dns_name = server.dns
     if 'action' in data:
         action = data['action']
+    if 'dns_name' in data:
+        dns_name = data['dns_name']
     # change dns
     aws_handler = AwsHandler()
     try:
-        aws_handler.modify_dns(action, old_ip=old_ip, new_ip=new_ip)
+        aws_handler.modify_dns(action, old_ip=old_ip, new_ip=new_ip, dns_name=dns_name)
         status = True
     except:
         status = False
