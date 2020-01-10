@@ -283,10 +283,10 @@ def change_dns(request):
     action = 'remove'
     ips = dict()
     if 'old_ip' in data:
-        ips['old_ip'] = data['old_ip']
+        old_ip = data['old_ip']
 
     if 'new_ip' in data:
-        ips['new_ip'] = data['new_ip']
+        new_ip = data['new_ip']
     if 'action' in data:
         action = data['action']
     # change dns
