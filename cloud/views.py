@@ -172,36 +172,41 @@ class AwsHandler:
         record_sets = self.client.list_resource_record_sets(
             HostedZoneId=self.zone_id,
         )
-
+        updatable_record = ''
         for record in record_sets['ResourceRecordSets']:
             if record['Type'] == 'A':
                 if action == 'remove' and old_ip != '':
                     old_dns = {'Value': str(old_ip)}
                     if old_dns in record['ResourceRecords']:
                         record['ResourceRecords'].remove(old_dns)
+                        updatable_record = record
+                        break
                 elif action == 'add' and new_ip != '' and record['Name'] == dns_name:
                     new_dns = {'Value': str(new_ip)}
                     record['ResourceRecords'].append(new_dns)
+                    updatable_record = record
+                    break
                 elif action == 'swap' and old_ip != '' and new_ip != '':
                     old_dns = {'Value': str(old_ip)}
                     record['ResourceRecords'].remove(old_dns)
-
                     new_dns = {'Value': str(new_ip)}
                     record['ResourceRecords'].append(new_dns)
-                else:
-                    return 'No change in dns accured.'
-                self.client.change_resource_record_sets(
-                    HostedZoneId=self.zone_id,
-                    ChangeBatch={
-                        'Comment': 'Good for now',
-                        'Changes': [
-                            {
-                                'Action': 'UPSERT',
-                                'ResourceRecordSet': record
-                            }
-                        ]
-                    }
-                )
+                    updatable_record = record
+                    break
+
+        if updatable_record != '':
+            self.client.change_resource_record_sets(
+                HostedZoneId=self.zone_id,
+                ChangeBatch={
+                    'Comment': 'Good for now',
+                    'Changes': [
+                        {
+                            'Action': 'UPSERT',
+                            'ResourceRecordSet': updatable_record
+                        }
+                    ]
+                }
+            )
 
     def get_dns_by_ip(self, ip):
         dns_value = {'Value': str(ip)}
