@@ -52,14 +52,15 @@ class DoHandler(digitalocean.Manager):
 
         return drop
 
-    def create_new_droplet(self, server_type, old_ip):
+    def create_new_droplet(self, snapshot_name, old_ip):
         avail_regs = ['ams3', 'fra1', 'lon1', 'nyc1', 'nyc3', 'tor1', 'sfo2']
         max_size, avail_regs_raw = self.get_sizes()
         my_images = self.get_my_images()
         image = my_images[-1]
 
         print(image.name)
-        image_name = f'mtpserver16g-{server_type}'
+        # image_name = f'mtpserver16g-{snapshot_name}'
+        image_name = snapshot_name
 
         for a in my_images:
             # if a.name == 'mtpserver16g':
@@ -217,7 +218,7 @@ class AwsHandler:
         for record in record_sets['ResourceRecordSets']:
             if record['Type'] == 'A' and dns_value in record['ResourceRecords']:
                 return record['Name']
-        return False
+        return 'addr.threeo.ml.'
 
     def random_ip(self):
         new_ip = str(int(200 * random.random())) \
@@ -274,7 +275,8 @@ def change_server(request):
 
     time.sleep(20)
 
-    new_drop = do_handler.create_new_droplet(server.type, old_ip)
+    # new_drop = do_handler.create_new_droplet(server.type, old_ip)
+    new_drop = do_handler.create_new_droplet(server.proxy.snapshot.name, old_ip)
     new_drop = do_handler.get_droplet_by_id(new_drop.id)
     # todo: set status to testing for this server
     # todo: set dns here.
