@@ -52,7 +52,7 @@ class DoHandler(digitalocean.Manager):
 
         return drop
 
-    def create_new_droplet(self, server_type, old_ip):
+    def create_new_droplet(self, snapshot_name, old_ip):
         avail_regs = ['ams3', 'fra1', 'lon1', 'nyc1', 'nyc3', 'tor1', 'sfo2']
         max_size, avail_regs_raw = self.get_sizes()
         my_images = self.get_my_images()
@@ -217,7 +217,17 @@ class AwsHandler:
         for record in record_sets['ResourceRecordSets']:
             if record['Type'] == 'A' and dns_value in record['ResourceRecords']:
                 return record['Name']
-        return False
+        return 'addr.threeo.ml.'
+
+    def all_dnses(self):
+        record_sets = self.client.list_resource_record_sets(
+            HostedZoneId=self.zone_id,
+        )
+
+        for record in record_sets['ResourceRecordSets']:
+            if record['Type'] == 'A' and record['Name'] == 'addr.threeo.ml.':
+                return record['ResourceRecords']
+        return 'addr.threeo.ml.'
 
     def random_ip(self):
         new_ip = str(int(200 * random.random())) \
@@ -347,3 +357,14 @@ def find_new_drop(request):
             })
             return JsonResponse(context, safe=False)
     return False
+
+
+@csrf_exempt
+def get_all_dnses(request):
+    aws_handler = AwsHandler()
+    all_dnses = aws_handler.all_dnses()
+    print(all_dnses)
+    context = {
+        'dnses': all_dnses
+    }
+    return JsonResponse(context, safe=False)
