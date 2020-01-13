@@ -11,4 +11,5 @@ urlpatterns = [
     path('change-server', views.change_server, name='change_server'),
     path('change-dns', views.change_dns, name='change_dns'),
     path('find-new-drop', views.find_new_drop, name='find_new_drop'),
+    path('get-all-dns', views.get_all_dnses, name='get_all_dnses'),
 ]

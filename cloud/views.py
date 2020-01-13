@@ -220,6 +220,16 @@ class AwsHandler:
                 return record['Name']
         return 'addr.threeo.ml.'
 
+    def all_dnses(self):
+        record_sets = self.client.list_resource_record_sets(
+            HostedZoneId=self.zone_id,
+        )
+
+        for record in record_sets['ResourceRecordSets']:
+            if record['Type'] == 'A' and record['Name'] == 'addr.threeo.ml.':
+                return record['ResourceRecords']
+        return False
+
     def random_ip(self):
         new_ip = str(int(200 * random.random())) \
                  + '.' + str(int(200 * random.random())) \
@@ -349,3 +359,14 @@ def find_new_drop(request):
             })
             return JsonResponse(context, safe=False)
     return False
+
+
+@csrf_exempt
+def get_all_dnses(request):
+    aws_handler = AwsHandler()
+    all_dnses = aws_handler.all_dnses()
+    print(all_dnses)
+    context = {
+        'dnses': all_dnses
+    }
+    return JsonResponse(context, safe=False)
