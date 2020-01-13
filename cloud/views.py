@@ -56,14 +56,10 @@ class DoHandler(digitalocean.Manager):
         avail_regs = ['ams3', 'fra1', 'lon1', 'nyc1', 'nyc3', 'tor1', 'sfo2']
         max_size, avail_regs_raw = self.get_sizes()
         my_images = self.get_my_images()
-        image = my_images[-1]
 
-        print(image.name)
-        # image_name = f'mtpserver16g-{snapshot_name}'
         image_name = snapshot_name
 
         for a in my_images:
-            # if a.name == 'mtpserver16g':
             if a.name == image_name:
                 image = a
 
@@ -112,6 +108,7 @@ class DoHandler(digitalocean.Manager):
                     server_id=drop['id'],
                     ipv4=drop['ip'],
                     type=self.determine_server_type(self.get_droplet(drop['id'])),
+                    status=Status.objects.get(title='clean')
                 )
 
     def sandbox(self):
