@@ -8,7 +8,7 @@ import boto3
 from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse
 import digitalocean
-from cloud.models import Server, Cloud, Status
+from cloud.models import Server, Cloud, Status, SnapShot
 # Create your views here.
 from django.views.decorators.csrf import csrf_exempt
 token = os.environ['DO_TOKEN']
@@ -103,12 +103,17 @@ class DoHandler(digitalocean.Manager):
     def create_drops(self, drops, cloud):
         for drop in drops:
             if not Server.objects.filter(server_id=drop['id'], ipv4=drop['ip']).exists():
+                do_handler = DoHandler(token)
+                droplent = do_handler.get_droplet_by_id(drop['id'])
+                snapshot_name = droplent.image['name']
+                snapshot = SnapShot.objects.get(name=snapshot_name)
                 Server.objects.create(
                     cloud=cloud,
                     server_id=drop['id'],
                     ipv4=drop['ip'],
                     type=self.determine_server_type(self.get_droplet(drop['id'])),
-                    status=Status.objects.get(title='clean')
+                    status=Status.objects.get(title='clean'),
+                    proxy=snapshot.proxy
                 )
 
     def sandbox(self):
@@ -294,7 +299,8 @@ def change_server(request):
         ipv4=new_drop.ip_address,
         type=do_handler.determine_server_type(new_drop),
         status=Status.objects.get(key='testing'),
-        dns=old_dns_name
+        dns=old_dns_name,
+        proxy=server.proxy
     )
     print('new drop created...: ', new_drop.ip_address)
     context = {
