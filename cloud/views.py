@@ -103,9 +103,8 @@ class DoHandler(digitalocean.Manager):
     def create_drops(self, drops, cloud):
         for drop in drops:
             if not Server.objects.filter(server_id=drop['id'], ipv4=drop['ip']).exists():
-                do_handler = DoHandler(token)
-                droplent = do_handler.get_droplet_by_id(drop['id'])
-                snapshot_name = droplent.image['name']
+                droplet = self.get_droplet_by_id(drop['id'])
+                snapshot_name = droplet.image['name']
                 snapshot = SnapShot.objects.get(name=snapshot_name)
                 Server.objects.create(
                     cloud=cloud,
