@@ -39,6 +39,7 @@ class Status(models.Model):
 
 
 class Proxy(TimeStampedModel):
+    owner = models.ForeignKey(User, on_delete=models.CASCADE)
     name = models.CharField(max_length=25)
     url_port = models.CharField(max_length=100)
 
@@ -56,14 +57,20 @@ class SnapShot(TimeStampedModel):
 
 class Server(TimeStampedModel):
     cloud = models.ForeignKey(Cloud, on_delete=models.CASCADE)
+    snapshot = models.ForeignKey(SnapShot, on_delete=models.DO_NOTHING)
     status = models.ForeignKey(Status, on_delete=models.DO_NOTHING)
     name = models.CharField(max_length=30, blank=True, null=True)
     server_id = models.CharField(max_length=30)
     ipv4 = models.CharField(max_length=20)
     dns = models.CharField(max_length=200, blank=True, null=True)
     fail = models.BooleanField(default=False)
-    type = models.CharField(max_length=10, default='front')
-    proxy = models.ForeignKey(Proxy, on_delete=models.DO_NOTHING)
 
     def __str__(self):
-        return '%s - %s - %s - %s -  %s - %s' % (self.cloud.owner.username.capitalize(), self.cloud.name.capitalize(), self.cloud.type.name.capitalize(), self.server_id, self.ipv4, self.type)
+        return '%s - %s - %s - %s -  %s - %s' % (
+            self.cloud.owner.username.capitalize(),
+            self.cloud.name.capitalize(),
+            self.cloud.type.name.capitalize(),
+            self.server_id,
+            self.ipv4,
+            self.snapshot.__str__()
+        )

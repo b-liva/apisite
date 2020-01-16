@@ -106,13 +106,14 @@ class DoHandler(digitalocean.Manager):
                 droplet = self.get_droplet_by_id(drop['id'])
                 snapshot_name = droplet.image['name']
                 snapshot = SnapShot.objects.get(name=snapshot_name)
+                # todo: every proxy is attached to a User account and every server has a snapshot which is belonged to a server,
+                # so we don't need to find the image and then the snapshot.
                 Server.objects.create(
                     cloud=cloud,
                     server_id=drop['id'],
                     ipv4=drop['ip'],
-                    type=self.determine_server_type(self.get_droplet(drop['id'])),
                     status=Status.objects.get(title='clean'),
-                    proxy=snapshot.proxy
+                    snapshot=snapshot
                 )
 
     def sandbox(self):
@@ -287,7 +288,7 @@ def change_server(request):
     time.sleep(20)
 
     # new_drop = do_handler.create_new_droplet(server.type, old_ip)
-    new_drop = do_handler.create_new_droplet(server.proxy.snapshot.name, old_ip)
+    new_drop = do_handler.create_new_droplet(server.snapshot.name, old_ip)
     new_drop = do_handler.get_droplet_by_id(new_drop.id)
     # todo: set status to testing for this server
     # todo: set dns here.
@@ -296,10 +297,9 @@ def change_server(request):
         name=new_drop.name,
         server_id=new_drop.id,
         ipv4=new_drop.ip_address,
-        type=do_handler.determine_server_type(new_drop),
         status=Status.objects.get(key='testing'),
         dns=old_dns_name,
-        proxy=server.proxy
+        snapshot=server.snapshot
     )
     print('new drop created...: ', new_drop.ip_address)
     context = {
