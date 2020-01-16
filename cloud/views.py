@@ -106,6 +106,8 @@ class DoHandler(digitalocean.Manager):
                 droplet = self.get_droplet_by_id(drop['id'])
                 snapshot_name = droplet.image['name']
                 snapshot = SnapShot.objects.get(name=snapshot_name)
+                aws_handler = AwsHandler()
+                dns = aws_handler.get_dns_by_ip(drop['ip'])
                 # todo: every proxy is attached to a User account and every server has a snapshot which is belonged to a server,
                 # so we don't need to find the image and then the snapshot.
                 Server.objects.create(
@@ -113,7 +115,8 @@ class DoHandler(digitalocean.Manager):
                     server_id=drop['id'],
                     ipv4=drop['ip'],
                     status=Status.objects.get(title='clean'),
-                    snapshot=snapshot
+                    snapshot=snapshot,
+                    dns=dns
                 )
 
     def sandbox(self):
