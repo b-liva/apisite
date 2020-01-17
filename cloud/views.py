@@ -243,7 +243,7 @@ class AwsHandler:
             print('record: ', record)
             if record['Type'] == 'A' and dns_value in record['ResourceRecords']:
                 return record['Name']
-        return 'addr.threeo.ml.'
+        return False
 
     def all_dnses(self):
         # todo: for all zone_ids should be done.
