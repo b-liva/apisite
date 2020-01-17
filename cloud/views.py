@@ -144,6 +144,7 @@ class AwsHandler:
         self.client = session.client("route53")
 
     def change_dns_ip(self, old_ip, new_ip):
+        # todo: deprecated.
         serve = Server.objects.get(ipv4=old_ip)
         zone_id = get_zone_id_by_subdomain(serve.dns)
         record_sets = self.client.list_resource_record_sets(
@@ -182,10 +183,10 @@ class AwsHandler:
             new_ip = kwargs['new_ip']
         if 'dns_name' in kwargs:
             dns_name = kwargs['dns_name']
-        zone_id = get_zone_id_by_subdomain(dns_name)
+        # zone_id = get_zone_id_by_subdomain(dns_name)
         """removes ip from dns if it exists and adds if not exists in dns."""
         record_sets = self.client.list_resource_record_sets(
-            HostedZoneId=zone_id,
+            HostedZoneId=self.zone_id,
         )
         updatable_record = ''
         for record in record_sets['ResourceRecordSets']:
@@ -211,7 +212,7 @@ class AwsHandler:
 
         if updatable_record != '':
             self.client.change_resource_record_sets(
-                HostedZoneId=zone_id,
+                HostedZoneId=self.zone_id,
                 ChangeBatch={
                     'Comment': 'Good for now',
                     'Changes': [
@@ -226,12 +227,12 @@ class AwsHandler:
     def get_dns_by_ip(self, ip):
         server = Server.objects.get(ipv4=ip)
         print(server)
-        zone_id = get_zone_id_by_subdomain(server.dns)
-        print(zone_id)
+        # zone_id = get_zone_id_by_subdomain(server.dns)
+        print(self.zone_id)
         dns_value = {'Value': str(ip)}
         print(dns_value)
         record_sets = self.client.list_resource_record_sets(
-            HostedZoneId=zone_id,
+            HostedZoneId=self.zone_id,
         )
 
         for record in record_sets['ResourceRecordSets']:
@@ -306,6 +307,8 @@ def change_server(request):
     zone_id = get_zone_id_by_subdomain(server.dns)
     aws_handler = AwsHandler(zone_id=zone_id)
     old_dns_name = aws_handler.get_dns_by_ip(old_ip)
+    print('oldIp: ', old_ip)
+    print('old_dns_name: ', old_dns_name)
     print('destroying old droplet! => ', old_ip)
     old_droplet.destroy()
     server.fail = True
@@ -357,6 +360,7 @@ def change_dns(request):
     if 'dns_name' in data:
         dns_name = data['dns_name']
     # change dns
+    print('dns_name: ', dns_name)
     aws_handler = AwsHandler(zone_id=get_zone_id_by_subdomain(dns_name))
     try:
         aws_handler.modify_dns(action, old_ip=old_ip, new_ip=new_ip, dns_name=dns_name)
