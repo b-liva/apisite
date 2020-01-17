@@ -240,7 +240,6 @@ class AwsHandler:
         for record in record_sets['ResourceRecordSets']:
             print('record: ', record)
             if record['Type'] == 'A' and dns_value in record['ResourceRecords']:
-                print(record_sets['Name'])
                 return record['Name']
         return 'addr.threeo.ml.'
 
