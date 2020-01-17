@@ -108,7 +108,7 @@ class DoHandler(digitalocean.Manager):
                 snapshot = SnapShot.objects.get(name=snapshot_name)
                 distinct_zone_ids = Domain.objects.values('zone_id').distinct()
                 for zone_id in distinct_zone_ids:
-                    aws_handler = AwsHandler(zone_id=zone_id)
+                    aws_handler = AwsHandler(zone_id=zone_id['zone_id'])
                     dns = aws_handler.get_dns_by_ip(drop['ip'])
                     if dns:
                         break
