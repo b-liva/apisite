@@ -174,15 +174,19 @@ class AwsHandler:
 
     def modify_dns(self, action, **kwargs):
         print('change dns kwargs: ', kwargs)
-        old_ip = new_ip = ''
+        print(self.zone_id)
+        old_ip = new_ip = dns_name = ''
         if 'old_ip' in kwargs:
             old_ip = kwargs['old_ip']
-            server = Server.objects.get(ipv4=old_ip)
-            dns_name = server.dns
+            if old_ip != '':
+                server = Server.objects.get(ipv4=old_ip)
+                dns_name = server.dns
         if 'new_ip' in kwargs:
             new_ip = kwargs['new_ip']
         if 'dns_name' in kwargs:
             dns_name = kwargs['dns_name']
+        print('**: ', dns_name)
+
         # zone_id = get_zone_id_by_subdomain(dns_name)
         """removes ip from dns if it exists and adds if not exists in dns."""
         record_sets = self.client.list_resource_record_sets(
@@ -364,7 +368,9 @@ def change_dns(request):
         dns_name = data['dns_name']
     # change dns
     print('dns_name: ', dns_name)
+    print('action: ', action)
     aws_handler = AwsHandler(zone_id=get_zone_id_by_subdomain(dns_name))
+    print('zoneID: ', aws_handler.zone_id)
     try:
         aws_handler.modify_dns(action, old_ip=old_ip, new_ip=new_ip, dns_name=dns_name)
         status = True
