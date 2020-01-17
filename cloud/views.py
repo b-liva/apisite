@@ -225,14 +225,18 @@ class AwsHandler:
 
     def get_dns_by_ip(self, ip):
         server = Server.objects.get(ipv4=ip)
+        print(server)
         zone_id = get_zone_id_by_subdomain(server.dns)
+        print(zone_id)
         dns_value = {'Value': str(ip)}
+        print(dns_value)
         record_sets = self.client.list_resource_record_sets(
             HostedZoneId=zone_id,
         )
 
         for record in record_sets['ResourceRecordSets']:
             if record['Type'] == 'A' and dns_value in record['ResourceRecords']:
+                print(record_sets['Name'])
                 return record['Name']
         return 'addr.threeo.ml.'
 
