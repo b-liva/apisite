@@ -8,7 +8,7 @@ import boto3
 from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse
 import digitalocean
-from cloud.models import Server, Cloud, Status, SnapShot
+from cloud.models import Server, Cloud, Status, SnapShot, Domain
 # Create your views here.
 from django.views.decorators.csrf import csrf_exempt
 token = os.environ['DO_TOKEN']
@@ -106,8 +106,12 @@ class DoHandler(digitalocean.Manager):
                 droplet = self.get_droplet_by_id(drop['id'])
                 snapshot_name = droplet.image['name']
                 snapshot = SnapShot.objects.get(name=snapshot_name)
-                aws_handler = AwsHandler()
-                dns = aws_handler.get_dns_by_ip(drop['ip'])
+                distinct_zone_ids = Domain.objects.values('zone_id').distinct()
+                for zone_id in distinct_zone_ids:
+                    aws_handler = AwsHandler(zone_id=zone_id)
+                    dns = aws_handler.get_dns_by_ip(drop['ip'])
+                    if dns:
+                        break
                 # todo: every proxy is attached to a User account and every server has a snapshot which is belonged to a server,
                 # so we don't need to find the image and then the snapshot.
                 Server.objects.create(
@@ -131,8 +135,8 @@ class DoHandler(digitalocean.Manager):
 class AwsHandler:
     zone_id = ''
 
-    def __init__(self, region_name=None):
-        self.zone_id = ZONE_ID
+    def __init__(self, region_name=None, zone_id=ZONE_ID):
+        self.zone_id = zone_id
         session = boto3.Session(
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key,
@@ -140,8 +144,10 @@ class AwsHandler:
         self.client = session.client("route53")
 
     def change_dns_ip(self, old_ip, new_ip):
+        serve = Server.objects.get(ipv4=old_ip)
+        zone_id = get_zone_id_by_subdomain(serve.dns)
         record_sets = self.client.list_resource_record_sets(
-            HostedZoneId=self.zone_id,
+            HostedZoneId=zone_id,
         )
 
         for record in record_sets['ResourceRecordSets']:
@@ -153,7 +159,7 @@ class AwsHandler:
                 record['ResourceRecords'].append(new_dns)
                 # record['ResourceRecords'] = [new_dns]
                 self.client.change_resource_record_sets(
-                    HostedZoneId=self.zone_id,
+                    HostedZoneId=zone_id,
                     ChangeBatch={
                         'Comment': 'Good for now',
                         'Changes': [
@@ -167,16 +173,19 @@ class AwsHandler:
 
     def modify_dns(self, action, **kwargs):
         print('change dns kwargs: ', kwargs)
-        old_ip = new_ip = dns_name = ''
+        old_ip = new_ip = ''
         if 'old_ip' in kwargs:
             old_ip = kwargs['old_ip']
+            server = Server.objects.get(ipv4=old_ip)
+            dns_name = server.dns
         if 'new_ip' in kwargs:
             new_ip = kwargs['new_ip']
         if 'dns_name' in kwargs:
             dns_name = kwargs['dns_name']
+        zone_id = get_zone_id_by_subdomain(dns_name)
         """removes ip from dns if it exists and adds if not exists in dns."""
         record_sets = self.client.list_resource_record_sets(
-            HostedZoneId=self.zone_id,
+            HostedZoneId=zone_id,
         )
         updatable_record = ''
         for record in record_sets['ResourceRecordSets']:
@@ -202,7 +211,7 @@ class AwsHandler:
 
         if updatable_record != '':
             self.client.change_resource_record_sets(
-                HostedZoneId=self.zone_id,
+                HostedZoneId=zone_id,
                 ChangeBatch={
                     'Comment': 'Good for now',
                     'Changes': [
@@ -215,9 +224,11 @@ class AwsHandler:
             )
 
     def get_dns_by_ip(self, ip):
+        server = Server.objects.get(ipv4=ip)
+        zone_id = get_zone_id_by_subdomain(server.dns)
         dns_value = {'Value': str(ip)}
         record_sets = self.client.list_resource_record_sets(
-            HostedZoneId=self.zone_id,
+            HostedZoneId=zone_id,
         )
 
         for record in record_sets['ResourceRecordSets']:
@@ -226,6 +237,7 @@ class AwsHandler:
         return 'addr.threeo.ml.'
 
     def all_dnses(self):
+        # todo: for all zone_ids should be done.
         record_sets = self.client.list_resource_record_sets(
             HostedZoneId=self.zone_id,
         )
@@ -245,6 +257,13 @@ class AwsHandler:
 
 def index(request):
     return HttpResponse('hello basir')
+
+
+def get_zone_id_by_subdomain(subdomain):
+    subdomain_parts = subdomain.split('.')
+    domain = f'{subdomain_parts[-3]}.{subdomain_parts[-2]}.'
+    domain_obj = Domain.objects.get(domain=domain)
+    return domain_obj.zone_id
 
 
 def test_json_response(request):
@@ -280,7 +299,8 @@ def change_server(request):
     do_handler = DoHandler(server.cloud.secret)
     old_droplet = do_handler.get_droplet_by_id(id)
     old_ip = old_droplet.ip_address
-    aws_handler = AwsHandler()
+    zone_id = get_zone_id_by_subdomain(server.dns)
+    aws_handler = AwsHandler(zone_id=zone_id)
     old_dns_name = aws_handler.get_dns_by_ip(old_ip)
     print('destroying old droplet! => ', old_ip)
     old_droplet.destroy()
@@ -322,7 +342,8 @@ def change_dns(request):
     ips = dict()
     if 'old_ip' in data:
         old_ip = data['old_ip']
-
+        server = Server.objects.get(ipv4=old_ip)
+        dns_name = server.dns
     if 'new_ip' in data:
         new_ip = data['new_ip']
         server = Server.objects.get(ipv4=new_ip)
@@ -332,7 +353,7 @@ def change_dns(request):
     if 'dns_name' in data:
         dns_name = data['dns_name']
     # change dns
-    aws_handler = AwsHandler()
+    aws_handler = AwsHandler(zone_id=get_zone_id_by_subdomain(dns_name))
     try:
         aws_handler.modify_dns(action, old_ip=old_ip, new_ip=new_ip, dns_name=dns_name)
         status = True

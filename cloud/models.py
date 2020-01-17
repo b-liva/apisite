@@ -47,6 +47,16 @@ class Proxy(TimeStampedModel):
         return '%s' % self.name
 
 
+class Domain(TimeStampedModel):
+    owner = models.ForeignKey(User, on_delete=models.CASCADE)
+    name = models.CharField(max_length=25)
+    domain = models.CharField(max_length=100)
+    zone_id = models.CharField(max_length=100)
+
+    def __str__(self):
+        return '%s' % self.name
+
+
 class SnapShot(TimeStampedModel):
     name = models.CharField(max_length=25)
     proxy = models.OneToOneField(Proxy, on_delete=models.CASCADE, primary_key=True)

@@ -5,7 +5,8 @@ from .models import (
     Type,
     Status,
     Proxy,
-    SnapShot
+    SnapShot,
+    Domain
 )
 
 # Register your models here.
@@ -15,3 +16,4 @@ admin.site.register(Type)
 admin.site.register(Status)
 admin.site.register(Proxy)
 admin.site.register(SnapShot)
+admin.site.register(Domain)
