@@ -109,7 +109,9 @@ class DoHandler(digitalocean.Manager):
                 distinct_zone_ids = Domain.objects.values('zone_id').distinct()
                 for zone_id in distinct_zone_ids:
                     aws_handler = AwsHandler(zone_id=zone_id['zone_id'])
+                    print('zone_id: ', aws_handler.zone_id)
                     dns = aws_handler.get_dns_by_ip(drop['ip'])
+                    print('ddns: ', dns)
                     if dns:
                         break
                 # todo: every proxy is attached to a User account and every server has a snapshot which is belonged to a server,
