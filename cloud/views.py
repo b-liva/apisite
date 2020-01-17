@@ -226,7 +226,8 @@ class AwsHandler:
 
     def get_dns_by_ip(self, ip):
         server = Server.objects.get(ipv4=ip)
-        print(server)
+        print('server is: ', server)
+        print('server dns: ', server.dns)
         # zone_id = get_zone_id_by_subdomain(server.dns)
         print(self.zone_id)
         dns_value = {'Value': str(ip)}
@@ -234,8 +235,10 @@ class AwsHandler:
         record_sets = self.client.list_resource_record_sets(
             HostedZoneId=self.zone_id,
         )
+        print('recordset', record_sets['ResourceRecordSets'])
 
         for record in record_sets['ResourceRecordSets']:
+            print('record: ', record)
             if record['Type'] == 'A' and dns_value in record['ResourceRecords']:
                 print(record_sets['Name'])
                 return record['Name']
