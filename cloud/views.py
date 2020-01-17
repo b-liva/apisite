@@ -309,7 +309,7 @@ def change_server(request):
     old_ip = old_droplet.ip_address
     zone_id = get_zone_id_by_subdomain(server.dns)
     aws_handler = AwsHandler(zone_id=zone_id)
-    old_dns_name = aws_handler.get_dns_by_ip(old_ip)
+    old_dns_name = server.dns
     print('oldIp: ', old_ip)
     print('old_dns_name: ', old_dns_name)
     print('destroying old droplet! => ', old_ip)
