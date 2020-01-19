@@ -353,7 +353,7 @@ def change_dns(request):
     ips = dict()
     if 'old_ip' in data:
         old_ip = data['old_ip']
-        server = Server.objects.get(ipv4=old_ip)
+        server = Server.objects.filter(ipv4=old_ip).last()
         dns_name = server.dns
     if 'new_ip' in data:
         new_ip = data['new_ip']
