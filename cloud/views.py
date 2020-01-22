@@ -357,7 +357,7 @@ def change_dns(request):
         dns_name = server.dns
     if 'new_ip' in data:
         new_ip = data['new_ip']
-        server = Server.objects.get(ipv4=new_ip)
+        server = Server.objects.filter(ipv4=new_ip).last()
         dns_name = server.dns
     if 'action' in data:
         action = data['action']
