@@ -3,14 +3,30 @@ import datetime
 import json
 import random
 import time
-
+import logging
 import boto3
 from django.shortcuts import render
 from django.http import HttpResponse, JsonResponse
 import digitalocean
 from cloud.models import Server, Cloud, Status, SnapShot, Domain
-# Create your views here.
 from django.views.decorators.csrf import csrf_exempt
+# Create your views here.
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
+formatter = logging.Formatter('%(asctime)s:%(name)s:%(message)s')
+
+file_handler = logging.FileHandler('cloud.log')
+# file_handler.setLevel(logging.ERROR)
+file_handler.setFormatter(formatter)
+
+# stream_handler = logging.StreamHandler()
+# stream_handler.setFormatter(formatter)
+
+logger.addHandler(file_handler)
+# logger.addHandler(stream_handler)
+
+
 token = os.environ['DO_TOKEN']
 manager = digitalocean.Manager(token=token)
 
@@ -82,7 +98,10 @@ class DoHandler(digitalocean.Manager):
                                    image=image.id)
         obj.tags.append(str(old_ip).replace('.', '_'))
         print('start creating.')
-        obj.create()
+        try:
+            obj.create()
+        except:
+            logger.exception('New droplet creation failed for')
         # except:
         #     self.create_new_droplet()
         print('start waiting')
@@ -115,14 +134,17 @@ class DoHandler(digitalocean.Manager):
                     if dns:
                         break
 
-                Server.objects.create(
-                    cloud=cloud,
-                    server_id=drop['id'],
-                    ipv4=drop['ip'],
-                    status=Status.objects.get(title='clean'),
-                    snapshot=snapshot,
-                    dns=dns
-                )
+                try:
+                    Server.objects.create(
+                        cloud=cloud,
+                        server_id=drop['id'],
+                        ipv4=drop['ip'],
+                        status=Status.objects.get(title='clean'),
+                        snapshot=snapshot,
+                        dns=dns
+                    )
+                except:
+                    logger.exception('Server object creation failed.')
 
 
 class AwsHandler:
@@ -152,18 +174,21 @@ class AwsHandler:
                 record['ResourceRecords'].remove(dns_value)
                 record['ResourceRecords'].append(new_dns)
                 # record['ResourceRecords'] = [new_dns]
-                self.client.change_resource_record_sets(
-                    HostedZoneId=zone_id,
-                    ChangeBatch={
-                        'Comment': 'Good for now',
-                        'Changes': [
-                            {
-                                'Action': 'UPSERT',
-                                'ResourceRecordSet': record
-                            }
-                        ]
-                    }
-                )
+                try:
+                    self.client.change_resource_record_sets(
+                        HostedZoneId=zone_id,
+                        ChangeBatch={
+                            'Comment': 'Good for now',
+                            'Changes': [
+                                {
+                                    'Action': 'UPSERT',
+                                    'ResourceRecordSet': record
+                                }
+                            ]
+                        }
+                    )
+                except:
+                    logger.exception('changing dns failed.')
 
     def modify_dns(self, action, **kwargs):
         print('change dns kwargs: ', kwargs)
@@ -208,18 +233,21 @@ class AwsHandler:
                     break
 
         if updatable_record != '':
-            self.client.change_resource_record_sets(
-                HostedZoneId=self.zone_id,
-                ChangeBatch={
-                    'Comment': 'Good for now',
-                    'Changes': [
-                        {
-                            'Action': 'UPSERT',
-                            'ResourceRecordSet': updatable_record
-                        }
-                    ]
-                }
-            )
+            try:
+                self.client.change_resource_record_sets(
+                    HostedZoneId=self.zone_id,
+                    ChangeBatch={
+                        'Comment': 'Good for now',
+                        'Changes': [
+                            {
+                                'Action': 'UPSERT',
+                                'ResourceRecordSet': updatable_record
+                            }
+                        ]
+                    }
+                )
+            except:
+                logger.exception('failed to change dns.')
 
     def get_dns_by_ip(self, ip):
 
@@ -234,6 +262,7 @@ class AwsHandler:
             print('record: ', record)
             if record['Type'] == 'A' and dns_value in record['ResourceRecords']:
                 return record['Name']
+        logger.warning(f'No dns found for {ip}')
         return False
 
     def all_dnses(self):
@@ -262,7 +291,10 @@ def index(request):
 def get_zone_id_by_subdomain(subdomain):
     subdomain_parts = subdomain.split('.')
     domain = f'{subdomain_parts[-3]}.{subdomain_parts[-2]}.'
-    domain_obj = Domain.objects.get(domain=domain)
+    try:
+        domain_obj = Domain.objects.get(domain=domain)
+    except:
+        logger.exception('No Domain obj found')
     return domain_obj.zone_id
 
 
@@ -293,8 +325,10 @@ def change_server(request):
     # todo: find a clean ip
 
     # todo option X01: change dns of related subdomains to this clean ip
-
-    server = Server.objects.get(server_id=id)
+    try:
+        server = Server.objects.filter(server_id=id).last()
+    except:
+        logger.exception(f'No server found for {id}')
 
     do_handler = DoHandler(server.cloud.secret)
     old_droplet = do_handler.get_droplet_by_id(id)
@@ -302,8 +336,6 @@ def change_server(request):
     zone_id = get_zone_id_by_subdomain(server.dns)
     aws_handler = AwsHandler(zone_id=zone_id)
     old_dns_name = server.dns
-    print('oldIp: ', old_ip)
-    print('old_dns_name: ', old_dns_name)
     print('destroying old droplet! => ', old_ip)
     old_droplet.destroy()
     server.fail = True
@@ -317,15 +349,18 @@ def change_server(request):
     new_drop = do_handler.get_droplet_by_id(new_drop.id)
     # todo: set status to testing for this server
     # todo: set dns here.
-    Server.objects.create(
-        cloud=Cloud.objects.get(secret=do_handler.token),
-        name=new_drop.name,
-        server_id=new_drop.id,
-        ipv4=new_drop.ip_address,
-        status=Status.objects.get(key='testing'),
-        dns=old_dns_name,
-        snapshot=server.snapshot
-    )
+    try:
+        Server.objects.create(
+            cloud=Cloud.objects.get(secret=do_handler.token),
+            name=new_drop.name,
+            server_id=new_drop.id,
+            ipv4=new_drop.ip_address,
+            status=Status.objects.get(key='testing'),
+            dns=old_dns_name,
+            snapshot=server.snapshot
+        )
+    except:
+        logger.exception("Server Creation faild.")
     print('new drop created...: ', new_drop.ip_address)
     context = {
         'id': new_drop.id,
@@ -366,6 +401,7 @@ def change_dns(request):
         status = True
     except:
         status = False
+        logger.exception("modifying dns failed.")
     context = {'status': status}
     return JsonResponse(context, safe=False)
 
