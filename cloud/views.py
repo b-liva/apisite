@@ -105,17 +105,16 @@ class DoHandler(digitalocean.Manager):
             if not Server.objects.filter(server_id=drop['id'], ipv4=drop['ip']).exists():
                 droplet = self.get_droplet_by_id(drop['id'])
                 snapshot_name = droplet.image['name']
+                # todo (01): If there is not such a snapshot it should be created here.
                 snapshot = SnapShot.objects.get(name=snapshot_name)
                 distinct_zone_ids = Domain.objects.values('zone_id').distinct()
                 for zone_id in distinct_zone_ids:
                     aws_handler = AwsHandler(zone_id=zone_id['zone_id'])
-                    print('zone_id: ', aws_handler.zone_id)
+                    # todo (02): what if we haven't added the ip to a dns before?
                     dns = aws_handler.get_dns_by_ip(drop['ip'])
-                    print('ddns: ', dns)
                     if dns:
                         break
-                # todo: every proxy is attached to a User account and every server has a snapshot which is belonged to a server,
-                # so we don't need to find the image and then the snapshot.
+
                 Server.objects.create(
                     cloud=cloud,
                     server_id=drop['id'],
@@ -124,14 +123,6 @@ class DoHandler(digitalocean.Manager):
                     snapshot=snapshot,
                     dns=dns
                 )
-
-    def sandbox(self):
-        # Taking a snapshot
-        my_images = self.get_my_images()
-        drop = self.get_all_droplets()[0]
-        if len(my_images) == 0:
-            print('no image')
-            drop.take_snapshot('sm-01')
 
 
 class AwsHandler:
@@ -290,7 +281,7 @@ def get_all_servers(request):
         account_droplets = do_handler.get_droplets()
         do_handler.create_drops(account_droplets, account)
         droplets += account_droplets
-    print(droplets)
+
     return JsonResponse(droplets, safe=False)
 
 
@@ -347,6 +338,8 @@ def change_server(request):
 
 @csrf_exempt
 def change_dns(request):
+    # todo (4): If this is the last dns and it is being removed. save and in the next loop delete it.
+    # todo (7): what if it is a duplicate ip.
     data = json.loads(request.body.decode('utf-8'))
     old_ip = new_ip = dns_name = ''
     action = 'remove'
