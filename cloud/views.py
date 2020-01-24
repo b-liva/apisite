@@ -40,6 +40,7 @@ class DoHandler(digitalocean.Manager):
     def __init__(self, token):
         self.token = token
         digitalocean.Manager.__init__(self, token=self.token)
+        logger.info('*******************DoHandler instantiated.')
 
     def get_sizes(self):
         sizes = self.get_data('sizes')
@@ -160,7 +161,7 @@ class AwsHandler:
 
     def change_dns_ip(self, old_ip, new_ip):
         # todo: deprecated.
-        serve = Server.objects.get(ipv4=old_ip)
+        serve = Server.objects.filter(ipv4=old_ip).last()
         zone_id = get_zone_id_by_subdomain(serve.dns)
         record_sets = self.client.list_resource_record_sets(
             HostedZoneId=zone_id,
@@ -197,7 +198,7 @@ class AwsHandler:
         if 'old_ip' in kwargs:
             old_ip = kwargs['old_ip']
             if old_ip != '':
-                server = Server.objects.get(ipv4=old_ip)
+                server = Server.objects.filter(ipv4=old_ip).last()
                 dns_name = server.dns
         if 'new_ip' in kwargs:
             new_ip = kwargs['new_ip']
@@ -261,8 +262,9 @@ class AwsHandler:
         for record in record_sets['ResourceRecordSets']:
             print('record: ', record)
             if record['Type'] == 'A' and dns_value in record['ResourceRecords']:
+                logger.info(f"dns found for {ip} => {record['Name']}")
                 return record['Name']
-        logger.warning(f'No dns found for {ip}')
+        logger.warning(f'No dns found for {ip} in {self.zone_id}')
         return False
 
     def all_dnses(self):
@@ -414,7 +416,7 @@ def change_dns(request):
 def find_new_drop(request):
     data = json.loads(request.body.decode('utf-8'))
     old_ip = data['old_ip']
-    server = Server.objects.get(ipv4=old_ip)
+    server = Server.objects.filter(ipv4=old_ip).last()
     old_ip = old_ip.replace('.', '_')
 
     do_handler = DoHandler(server.cloud.secret)
