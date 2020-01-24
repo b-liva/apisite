@@ -437,7 +437,10 @@ def find_new_drop(request):
 
 @csrf_exempt
 def get_all_dnses(request):
-    aws_handler = AwsHandler()
+    data = json.loads(request.body.decode('utf-8'))
+    zone_id = data['zone_id']
+
+    aws_handler = AwsHandler(zone_id=zone_id)
     all_dnses = aws_handler.all_dnses()
     print(all_dnses)
     context = {
