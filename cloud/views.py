@@ -25,7 +25,7 @@ file_handler.setFormatter(formatter)
 
 logger.addHandler(file_handler)
 # logger.addHandler(stream_handler)
-
+logger.info('views started.')
 
 token = os.environ['DO_TOKEN']
 manager = digitalocean.Manager(token=token)
@@ -99,6 +99,7 @@ class DoHandler(digitalocean.Manager):
                                    image=image.id)
         obj.tags.append(str(old_ip).replace('.', '_'))
         print('start creating.')
+        logger.info('start creating.')
         try:
             obj.create()
         except:
@@ -158,6 +159,7 @@ class AwsHandler:
             aws_secret_access_key=aws_secret_access_key,
         )
         self.client = session.client("route53")
+        logger.info('AwsHandler instance created.')
 
     def change_dns_ip(self, old_ip, new_ip):
         # todo: deprecated.
@@ -339,6 +341,7 @@ def change_server(request):
     aws_handler = AwsHandler(zone_id=zone_id)
     old_dns_name = server.dns
     print('destroying old droplet! => ', old_ip)
+    logger.info(f'Destroying old droplet: {old_ip}')
     old_droplet.destroy()
     server.fail = True
     server.status = Status.objects.get(key='fail')
@@ -440,4 +443,5 @@ def get_all_dnses(request):
     context = {
         'dnses': all_dnses
     }
+    logger.info(f'all dnses: {all_dnses}')
     return JsonResponse(context, safe=False)
