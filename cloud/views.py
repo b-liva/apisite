@@ -103,7 +103,7 @@ class DoHandler(digitalocean.Manager):
         try:
             obj.create()
         except:
-            logger.exception('New droplet creation failed for')
+            logger.exception(f'New droplet creation failed to replace {old_ip}')
         # except:
         #     self.create_new_droplet()
         print('start waiting')
@@ -325,7 +325,7 @@ def get_all_servers(request):
 def change_server(request):
     data = json.loads(request.body.decode('utf-8'))
     id = data['id']
-    print('fingind by id: ', id)
+    logger.info(f'fingind server by id: {id}')
     # todo: find a clean ip
 
     # todo option X01: change dns of related subdomains to this clean ip
@@ -340,7 +340,6 @@ def change_server(request):
     zone_id = get_zone_id_by_subdomain(server.dns)
     aws_handler = AwsHandler(zone_id=zone_id)
     old_dns_name = server.dns
-    print('destroying old droplet! => ', old_ip)
     logger.info(f'Destroying old droplet: {old_ip}')
     old_droplet.destroy()
     server.fail = True
@@ -365,7 +364,7 @@ def change_server(request):
             snapshot=server.snapshot
         )
     except:
-        logger.exception("Server Creation faild.")
+        logger.exception(f"Server Creation faild. but {old_ip} was destroyed.")
     print('new drop created...: ', new_drop.ip_address)
     context = {
         'id': new_drop.id,
