@@ -418,6 +418,7 @@ def change_dns(request):
 def find_new_drop(request):
     data = json.loads(request.body.decode('utf-8'))
     old_ip = data['old_ip']
+    logger.info(f'find_new_drop => {old_ip}')
     server = Server.objects.filter(ipv4=old_ip).last()
     old_ip = old_ip.replace('.', '_')
 
@@ -431,7 +432,10 @@ def find_new_drop(request):
                 'ip': drop.ip_address,
             })
             return JsonResponse(context, safe=False)
-    return False
+    context = {
+        'status': False
+    }
+    return JsonResponse(context, safe=False)
 
 
 @csrf_exempt
