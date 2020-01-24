@@ -276,7 +276,7 @@ class AwsHandler:
         )
 
         for record in record_sets['ResourceRecordSets']:
-            if record['Type'] == 'A' and record['Name'] == 'addr.threeo.ml.':
+            if record['Type'] == 'A':
                 return record['ResourceRecords']
         return False
 
