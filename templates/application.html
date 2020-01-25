@@ -1,0 +1,10 @@
+{#{% extends 'requests/admin_jemco/page_elements/base_html/simple_base.html' %}#}
+{% load render_bundle from webpack_loader %}
+{#{% block right_col %}#}
+{#{% endblock %}#}
+
+<div id="app">
+    <app></app>
+</div>
+
+{% render_bundle 'app' %}

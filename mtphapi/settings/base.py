@@ -28,7 +28,8 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ROOT_DIR = (
     environ.Path(__file__) - 3
 )
-print('base dir: ', ROOT_DIR)
+print('Base dir: ', BASE_DIR)
+print('Root dir: ', ROOT_DIR)
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/3.0/howto/deployment/checklist/
@@ -50,6 +51,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'webpack_loader',
     'rest_framework',
     'rest_framework.authtoken',
     'digitalocean',
@@ -69,10 +71,24 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'mtphapi.urls'
 
+TEMPLATES_DIR = os.path.join(ROOT_DIR, 'templates')
+FRONTEND_DIR = os.path.join(ROOT_DIR, 'frontend')
+
+STATIC_URL = "/static/"
+STATIC_ROOT = os.path.join(ROOT_DIR, 'static')
+STATICFILES_DIRS = [
+    os.path.join(ROOT_DIR, 'dist'),
+]
+
+STATICFILES_FINDERS = [
+    "django.contrib.staticfiles.finders.FileSystemFinder",
+    "django.contrib.staticfiles.finders.AppDirectoriesFinder",
+]
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [os.path.join(ROOT_DIR, 'templates')],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -173,4 +189,12 @@ LOGGING = {
             'propagate': True,
         },
     },
+}
+
+WEBPACK_LOADER = {
+    'DEFAULT': {
+        'CACHE': DEBUG,
+        'BUNDLE_DIR_NAME': '/bundles/',  # must end with slash
+        'STATS_FILE': os.path.join(FRONTEND_DIR, 'webpack-stats.json'),
+    }
 }

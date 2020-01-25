@@ -26,9 +26,6 @@ package-lock.json
 *.orig
 /factor/djangobin-secrets.json
 
-
-frontend/
-
 temp_files/
 
 sandbox/
