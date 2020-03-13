@@ -63,6 +63,7 @@ class DoHandler(digitalocean.Manager):
     def get_droplet_by_id(self, id):
         drop = self.get_droplet(id)
         while drop.ip_address is None:
+            logger.warning(f'droplet {id} has not an ip address: ', drop.ip_address is None)
             print(f'droplet {id} has not an ip address: ', drop.ip_address is None)
             print(f'waiting to find ip address of {id}')
             time.sleep(10)
@@ -74,8 +75,8 @@ class DoHandler(digitalocean.Manager):
         return drop
 
     def create_new_droplet(self, snapshot_name, old_ip):
-        # avail_regs = ['ams3', 'fra1', 'lon1', 'nyc1', 'nyc3', 'tor1', 'sfo2']
-        avail_regs = ['ams3', 'fra1', 'nyc1', 'nyc3', 'tor1', 'sfo2']
+        avail_regs = ['ams3', 'fra1', 'lon1', 'nyc1', 'nyc3', 'tor1', 'sfo2']
+        # avail_regs = ['ams3', 'fra1', 'nyc1', 'nyc3', 'tor1', 'sfo2']
         max_size, avail_regs_raw = self.get_sizes()
         my_images = self.get_my_images()
 
@@ -86,12 +87,9 @@ class DoHandler(digitalocean.Manager):
                 image = a
 
         region = random.choice(avail_regs)
-        print('first reg: ', region)
         while region not in avail_regs_raw:
             region = random.choice(avail_regs)
-            print('loop reg: ', region)
 
-        # try:
         creation_time = datetime.datetime.now()
         time_string = \
             str(creation_time.year) + \
@@ -103,11 +101,11 @@ class DoHandler(digitalocean.Manager):
         obj = digitalocean.Droplet(token=self.token, name='ag-' + time_string, region=region, size=max_size,
                                    image=image.id)
         obj.tags.append(str(old_ip).replace('.', '_'))
-        print('start creating.')
         # find number of droplets to wait if needed.
         ds = self.get_all_droplets()
         droplets_count = len(ds)
         while droplets_count >= 10:
+            logger.warning('no more room to create droplet')
             print('no more room to create droplet')
             time.sleep(15)
             ds = self.get_all_droplets()
@@ -118,20 +116,8 @@ class DoHandler(digitalocean.Manager):
             logger.exception(f'New droplet creation failed to replace {old_ip}')
         # except:
         #     self.create_new_droplet()
-        print('start waiting')
-
         time.sleep(30)
-
         return obj
-
-    def determine_server_type(self, drop):
-        snapshot_ids = drop.get_snapshots()
-        proxy_snapshot_selector = 'pr01'
-        if snapshot_ids:
-            snap = snapshot_ids[len(snapshot_ids) - 1]
-            snapshot_obj = self.get_snapshot(snap.id)
-            proxy_snapshot_selector = snapshot_obj.name.split('-')[1]
-        return proxy_snapshot_selector
 
     def create_drops(self, drops, cloud):
         for drop in drops:
