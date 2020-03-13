@@ -64,6 +64,7 @@ class DoHandler(digitalocean.Manager):
 
     def get_droplet_by_id(self, id):
         drop = self.get_droplet(id)
+        print(f'droplet {id} has ip address: ', drop.ip_address is True)
         while drop.ip_address is False:
             time.sleep(10)
             drop = self.get_droplet(id)
@@ -109,6 +110,7 @@ class DoHandler(digitalocean.Manager):
         ds = self.get_all_droplets()
         droplets_count = len(ds)
         while not droplets_count < 10:
+            print('no more room to create droplet')
             time.sleep(15)
             ds = self.get_all_droplets()
             droplets_count = len(ds)
