@@ -25,7 +25,6 @@ file_handler.setFormatter(formatter)
 
 logger.addHandler(file_handler)
 # logger.addHandler(stream_handler)
-logger.info('views started.')
 
 token = os.environ['DO_TOKEN']
 manager = digitalocean.Manager(token=token)
@@ -40,7 +39,6 @@ class DoHandler(digitalocean.Manager):
     def __init__(self, token):
         self.token = token
         digitalocean.Manager.__init__(self, token=self.token)
-        logger.info('*******************DoHandler instantiated.')
 
     def get_sizes(self):
         sizes = self.get_data('sizes')
@@ -64,8 +62,8 @@ class DoHandler(digitalocean.Manager):
 
     def get_droplet_by_id(self, id):
         drop = self.get_droplet(id)
-        print(f'droplet {id} has not an ip address: ', drop.ip_address is None)
         while drop.ip_address is None:
+            print(f'droplet {id} has not an ip address: ', drop.ip_address is None)
             print(f'waiting to find ip address of {id}')
             time.sleep(10)
             drop = self.get_droplet(id)
@@ -106,7 +104,6 @@ class DoHandler(digitalocean.Manager):
                                    image=image.id)
         obj.tags.append(str(old_ip).replace('.', '_'))
         print('start creating.')
-        logger.info('start creating.')
         # find number of droplets to wait if needed.
         ds = self.get_all_droplets()
         droplets_count = len(ds)
@@ -174,7 +171,6 @@ class AwsHandler:
             aws_secret_access_key=aws_secret_access_key,
         )
         self.client = session.client("route53")
-        logger.info('AwsHandler instance created.')
 
     def change_dns_ip(self, old_ip, new_ip):
         # todo: deprecated.
@@ -206,7 +202,7 @@ class AwsHandler:
                         }
                     )
                 except:
-                    logger.exception('changing dns failed.')
+                    logger.exception(f'changing dns failed.old ip: {old_ip}, new ip: {new_ip}, zone id: {zone_id}')
 
     def modify_dns(self, action, **kwargs):
         print('change dns kwargs: ', kwargs)
@@ -265,7 +261,7 @@ class AwsHandler:
                     }
                 )
             except:
-                logger.exception('failed to change dns.')
+                logger.exception(f'failed to change dns. action: {action}')
 
     def get_dns_by_ip(self, ip):
 
@@ -279,7 +275,6 @@ class AwsHandler:
         for record in record_sets['ResourceRecordSets']:
             print('record: ', record)
             if record['Type'] == 'A' and dns_value in record['ResourceRecords']:
-                logger.info(f"dns found for {ip} => {record['Name']}")
                 return record['Name']
         logger.warning(f'No dns found for {ip} in {self.zone_id}')
         return False
@@ -355,7 +350,6 @@ def change_server(request):
     zone_id = get_zone_id_by_subdomain(server.dns)
     aws_handler = AwsHandler(zone_id=zone_id)
     old_dns_name = server.dns
-    logger.info(f'Destroying old droplet: {old_ip}')
     old_droplet.destroy()
     server.fail = True
     server.status = Status.objects.get(key='fail')
@@ -420,7 +414,7 @@ def change_dns(request):
         status = True
     except:
         status = False
-        logger.exception("modifying dns failed.")
+        logger.exception(f"modifying dns failed. action: {action}")
     context = {'status': status}
     return JsonResponse(context, safe=False)
 
@@ -478,5 +472,4 @@ def get_all_dnses(request):
     context = {
         'dnses': all_dnses
     }
-    logger.info(f'all dnses: {all_dnses}')
     return JsonResponse(context, safe=False)
