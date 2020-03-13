@@ -64,13 +64,21 @@ class DoHandler(digitalocean.Manager):
 
     def get_droplet_by_id(self, id):
         drop = self.get_droplet(id)
+        count = 9
+        while drop.ip_address is False and count > 0:
+            print('count: ', count)
+            time.sleep(10)
+            drop = self.get_droplet(id)
+            print(f'dropelt {id} has ip address: ', drop.ip_address is True)
+            count -= 1
         print('ip: ', drop.ip_address)
         # print('data: ', data)
 
         return drop
 
     def create_new_droplet(self, snapshot_name, old_ip):
-        avail_regs = ['ams3', 'fra1', 'lon1', 'nyc1', 'nyc3', 'tor1', 'sfo2']
+        # avail_regs = ['ams3', 'fra1', 'lon1', 'nyc1', 'nyc3', 'tor1', 'sfo2']
+        avail_regs = ['ams3', 'fra1', 'nyc1', 'nyc3', 'tor1', 'sfo2']
         max_size, avail_regs_raw = self.get_sizes()
         my_images = self.get_my_images()
 
@@ -103,12 +111,18 @@ class DoHandler(digitalocean.Manager):
         try:
             obj.create()
         except:
+            count = 5
+            if not obj.id and count > 0:
+                logger.exception(f'probably no more room for new droplet')
+                time.sleep(15)
+                obj.create()
+                count -= 1
             logger.exception(f'New droplet creation failed to replace {old_ip}')
         # except:
         #     self.create_new_droplet()
         print('start waiting')
 
-        time.sleep(30)
+        time.sleep(45)
 
         return obj
 
@@ -437,6 +451,20 @@ def find_new_drop(request):
     }
     return JsonResponse(context, safe=False)
 
+
+@csrf_exempt
+def get_all_ips(request):
+    drops = []
+    for account in Cloud.objects.filter(is_active=True, owner__is_active=True):
+        print(account)
+        do_handler = DoHandler(account.secret)
+        drops.extend(do_handler.get_all_droplets())
+    print(len(drops))
+    ips = [droplet.ip_address for droplet in drops if 'api' not in droplet.tags]
+    for ip in ips:
+        print(ip)
+    return JsonResponse(ips, safe=False)
+    
 
 @csrf_exempt
 def get_all_dnses(request):
