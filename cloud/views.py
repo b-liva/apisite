@@ -64,13 +64,10 @@ class DoHandler(digitalocean.Manager):
 
     def get_droplet_by_id(self, id):
         drop = self.get_droplet(id)
-        count = 9
-        while drop.ip_address is False and count > 0:
-            print('count: ', count)
+        while drop.ip_address is False:
             time.sleep(10)
             drop = self.get_droplet(id)
-            print(f'dropelt {id} has ip address: ', drop.ip_address is True)
-            count -= 1
+            print(f'droplet {id} has ip address: ', drop.ip_address is True)
         print('ip: ', drop.ip_address)
         # print('data: ', data)
 
@@ -108,21 +105,22 @@ class DoHandler(digitalocean.Manager):
         obj.tags.append(str(old_ip).replace('.', '_'))
         print('start creating.')
         logger.info('start creating.')
+        # find number of droplets to wait if needed.
+        ds = self.get_all_droplets()
+        droplets_count = len(ds)
+        while not droplets_count < 10:
+            time.sleep(15)
+            ds = self.get_all_droplets()
+            droplets_count = len(ds)
         try:
             obj.create()
         except:
-            count = 5
-            if not obj.id and count > 0:
-                logger.exception(f'probably no more room for new droplet')
-                time.sleep(15)
-                obj.create()
-                count -= 1
             logger.exception(f'New droplet creation failed to replace {old_ip}')
         # except:
         #     self.create_new_droplet()
         print('start waiting')
 
-        time.sleep(45)
+        time.sleep(30)
 
         return obj
 
