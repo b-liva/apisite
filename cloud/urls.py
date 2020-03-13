@@ -9,6 +9,7 @@ urlpatterns = [
     path('test-json', views.test_json_response, name='test_json'),
     path('get-all-servers', views.get_all_servers, name='get_all_servers'),
     path('change-server', views.change_server, name='change_server'),
+    path('get-all-ips', views.get_all_ips, name='get-all-ips'),
     path('change-dns', views.change_dns, name='change_dns'),
     path('find-new-drop', views.find_new_drop, name='find_new_drop'),
     path('get-all-dns', views.get_all_dnses, name='get_all_dnses'),
